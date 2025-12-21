@@ -14,7 +14,7 @@ local mouse = player:GetMouse()
 
 -- クリック状態
 local isClicking = false
-local clickSpeed = 0.05 -- 動作安定のため少しだけ間隔を調整（早すぎるとサーバーに弾かれるため）
+local clickSpeed = 0.000001 -- 動作安定のため少しだけ間隔を調整（早すぎるとサーバーに弾かれるため）
 local lastClickTime = 0
 local targetButtons = {} -- ターゲットとなるボタン
 local connection = nil
