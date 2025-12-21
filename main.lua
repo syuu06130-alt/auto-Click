@@ -1,272 +1,215 @@
--- 「Fling Things and People」専用 超高速クリッカー（修正完全版）
+-- 「Fling Things and People」モバイル専用 完全版オートクリッカー
 -- Place ID: 9604086456
+-- モバイル（スマホ/タブレット）対応版
 
 -- サービス参照
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
 local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-local VirtualInputManager = game:GetService("VirtualInputManager") -- 必須サービスを追加
+local VirtualInputManager = game:GetService("VirtualInputManager")
 
 -- ローカルプレイヤー
 local player = Players.LocalPlayer
-local mouse = player:GetMouse()
-
--- クリック状態
-local isClicking = false
-local clickSpeed = 0.000001 -- 動作安定のため少しだけ間隔を調整（早すぎるとサーバーに弾かれるため）
-local lastClickTime = 0
-local targetButtons = {} -- ターゲットとなるボタン
-local connection = nil
-
--- 表示用フレーム作成
-local displayFrame = Instance.new("Frame")
-displayFrame.Name = "AutoClickerDisplay"
-displayFrame.Size = UDim2.new(0, 160, 0, 90)
-displayFrame.Position = UDim2.new(0, 20, 0, 20)
-displayFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-displayFrame.BackgroundTransparency = 0.2
-displayFrame.BorderSizePixel = 0
-
--- コーナーを丸く
-local uiCorner = Instance.new("UICorner")
-uiCorner.CornerRadius = UDim.new(0, 8)
-uiCorner.Parent = displayFrame
-
--- ドロップシャドウ
-local uiShadow = Instance.new("ImageLabel")
-uiShadow.Name = "Shadow"
-uiShadow.Image = "rbxassetid://1316045217"
-uiShadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
-uiShadow.ImageTransparency = 0.6
-uiShadow.ScaleType = Enum.ScaleType.Slice
-uiShadow.SliceCenter = Rect.new(10, 10, 118, 118)
-uiShadow.Size = UDim2.new(1, 20, 1, 20)
-uiShadow.Position = UDim2.new(0, -10, 0, -10)
-uiShadow.BackgroundTransparency = 1
-uiShadow.Parent = displayFrame
-
--- タイトルテキスト
-local statusText = Instance.new("TextLabel")
-statusText.Name = "StatusText"
-statusText.Size = UDim2.new(1, -10, 0.4, 0)
-statusText.Position = UDim2.new(0, 10, 0, 5)
-statusText.BackgroundTransparency = 1
-statusText.TextColor3 = Color3.fromRGB(255, 255, 255)
-statusText.Text = "Fling AutoClicker"
-statusText.Font = Enum.Font.GothamBold
-statusText.TextSize = 14
-statusText.TextXAlignment = Enum.TextXAlignment.Left
-statusText.Parent = displayFrame
-
--- 状態表示テキスト
-local clickStatus = Instance.new("TextLabel")
-clickStatus.Name = "ClickStatus"
-clickStatus.Size = UDim2.new(1, -10, 0.3, 0)
-clickStatus.Position = UDim2.new(0, 10, 0.45, 0)
-clickStatus.BackgroundTransparency = 1
-clickStatus.TextColor3 = Color3.fromRGB(200, 200, 255)
-clickStatus.Text = "待機中..."
-clickStatus.Font = Enum.Font.Gotham
-clickStatus.TextSize = 13
-clickStatus.TextXAlignment = Enum.TextXAlignment.Left
-clickStatus.Parent = displayFrame
-
--- ボタン検出数テキスト
-local detectText = Instance.new("TextLabel")
-detectText.Name = "DetectText"
-detectText.Size = UDim2.new(1, -10, 0.2, 0)
-detectText.Position = UDim2.new(0, 10, 0.75, 0)
-detectText.BackgroundTransparency = 1
-detectText.TextColor3 = Color3.fromRGB(150, 255, 150)
-detectText.Text = "検出: 0"
-detectText.Font = Enum.Font.Gotham
-detectText.TextSize = 11
-detectText.TextXAlignment = Enum.TextXAlignment.Left
-detectText.Parent = displayFrame
-
--- オン/オフ切り替えボタン
-local toggleButton = Instance.new("TextButton")
-toggleButton.Name = "ToggleButton"
-toggleButton.Size = UDim2.new(0, 36, 0, 36)
-toggleButton.Position = UDim2.new(1, -45, 0.5, -18)
-toggleButton.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
-toggleButton.Text = "OFF"
-toggleButton.TextColor3 = Color3.new(1,1,1)
-toggleButton.Font = Enum.Font.GothamBold
-toggleButton.TextSize = 10
-toggleButton.AutoButtonColor = false
-
-local toggleCorner = Instance.new("UICorner")
-toggleCorner.CornerRadius = UDim.new(1, 0) -- 完全な円
-toggleCorner.Parent = toggleButton
-
-toggleButton.Parent = displayFrame
-
--- GUIのセットアップ
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "FlingAutoClicker_Fixed"
-screenGui.ResetOnSpawn = false
-screenGui.DisplayOrder = 10000
-displayFrame.Parent = screenGui
-
 local playerGui = player:WaitForChild("PlayerGui")
-screenGui.Parent = playerGui
 
--- === 重要: ボタン検出ロジック ===
-local function findGameButtons()
+-- 設定
+local isRunning = false
+local clickSpeed = 0.1 -- モバイルは少しゆっくりめが安定します
+local targetButtons = {} 
+
+-- === GUI作成（モバイル用に少し大きめ・操作しやすく調整） ===
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "FlingMobileClicker"
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+-- メインフレーム
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 180, 0, 110)
+mainFrame.Position = UDim2.new(0.05, 0, 0.4, 0) -- 左手親指で操作しやすい位置
+mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true -- ドラッグ可能に
+mainFrame.Parent = screenGui
+
+local uiCorner = Instance.new("UICorner")
+uiCorner.CornerRadius = UDim.new(0, 12)
+uiCorner.Parent = mainFrame
+
+-- タイトル
+local title = Instance.new("TextLabel")
+title.Text = "Mobile Auto Tap"
+title.Size = UDim2.new(1, 0, 0.3, 0)
+title.BackgroundTransparency = 1
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 16
+title.Parent = mainFrame
+
+-- ステータス表示
+local status = Instance.new("TextLabel")
+status.Name = "Status"
+status.Text = "待機中..."
+status.Size = UDim2.new(1, 0, 0.2, 0)
+status.Position = UDim2.new(0, 0, 0.3, 0)
+status.BackgroundTransparency = 1
+status.TextColor3 = Color3.fromRGB(200, 200, 200)
+status.Font = Enum.Font.Gotham
+status.TextSize = 14
+status.Parent = mainFrame
+
+-- ON/OFFボタン
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Name = "ToggleBtn"
+toggleBtn.Size = UDim2.new(0.8, 0, 0.35, 0)
+toggleBtn.Position = UDim2.new(0.1, 0, 0.55, 0)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(255, 60, 60) -- 赤（OFF）
+toggleBtn.Text = "START"
+toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.TextSize = 18
+toggleBtn.Parent = mainFrame
+
+local btnCorner = Instance.new("UICorner")
+btnCorner.CornerRadius = UDim.new(0, 8)
+btnCorner.Parent = toggleBtn
+
+-- GUIをプレイヤーにセット
+if gethui then
+    screenGui.Parent = gethui() -- 最近のExecutor用
+else
+    if CoreGui:FindFirstChild("RobloxGui") then
+        screenGui.Parent = CoreGui
+    else
+        screenGui.Parent = playerGui
+    end
+end
+
+-- === モバイル特化型ボタン検出機能 ===
+local function findMobileControls()
     targetButtons = {}
     
-    local function scanDescendants(parent)
-        for _, descendant in pairs(parent:GetDescendants()) do
-            -- UIボタンのみ対象（TextButton / ImageButton）
-            if descendant:IsA("TextButton") or descendant:IsA("ImageButton") then
-                if descendant.Visible then -- 見えているボタンのみ
-                    local name = string.lower(descendant.Name)
-                    local text = ""
-                    if descendant:IsA("TextButton") then
-                        text = string.lower(descendant.Text)
-                    end
+    -- 検索対象のGUIフォルダ（モバイル操作UIはここにあることが多い）
+    local guiTargets = {
+        playerGui,
+        playerGui:FindFirstChild("TouchGui"),
+        playerGui:FindFirstChild("ContextActionGui"), -- ジャンプやアクションボタンはここ
+        playerGui:FindFirstChild("MobileControlGui")
+    }
 
-                    -- 検索キーワード（必要に応じてここを追加・変更）
-                    if string.find(name, "click") or string.find(text, "click") or
-                       string.find(name, "fling") or string.find(text, "fling") or
-                       string.find(name, "spawn") or string.find(text, "spawn") or
-                       string.find(name, "collect") or
-                       string.find(name, "btn") then
-                        
-                        table.insert(targetButtons, descendant)
-                    end
+    local function scan(parent)
+        if not parent then return end
+        for _, v in pairs(parent:GetDescendants()) do
+            -- ボタンっぽいものを探す
+            if (v:IsA("ImageButton") or v:IsA("TextButton")) and v.Visible then
+                local name = string.lower(v.Name)
+                
+                -- モバイル特有のボタン名やアイコン名を検索
+                if string.find(name, "jump") or 
+                   string.find(name, "action") or 
+                   string.find(name, "interact") or 
+                   string.find(name, "grab") or 
+                   string.find(name, "click") or
+                   string.find(name, "touch") or
+                   string.find(name, "context") then -- ContextActionGuiのボタン
+                    
+                    table.insert(targetButtons, v)
                 end
             end
         end
     end
 
-    -- PlayerGui内を検索
-    scanDescendants(playerGui)
+    for _, gui in pairs(guiTargets) do
+        scan(gui)
+    end
     
-    detectText.Text = "検出: " .. #targetButtons
-    return #targetButtons
+    status.Text = "検出ボタン: " .. #targetButtons .. "個"
+    return targetButtons
 end
 
--- === 最重要: 物理クリックシミュレーション関数 ===
-local function simulateClick(button)
-    if button and button:IsDescendantOf(game) and button.Visible then
-        
-        -- ボタンの中心座標を計算
-        local absolutePos = button.AbsolutePosition
-        local absoluteSize = button.AbsoluteSize
-        local centerX = absolutePos.X + (absoluteSize.X / 2)
-        local centerY = absolutePos.Y + (absoluteSize.Y / 2)
+-- === モバイル用タップ実行関数 ===
+-- 座標クリックではなく、イベントを直接発火させることで確実に動作させる
+local function mobileTap(button)
+    if not button then return end
 
-        -- VirtualInputManagerを使って「本物の」クリックイベントを送る
-        -- (座標X, 座標Y, ボタン種類(0=左), 押す(true), ゲーム, ブロックするか)
-        VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, true, game, 1)
-        
-        -- 視覚フィードバック（クリックした瞬間赤くする）
-        local oldColor = button.BackgroundColor3
-        pcall(function() button.BackgroundColor3 = Color3.fromRGB(255, 50, 50) end)
-        
-        -- 一瞬待って離す
-        task.delay(0.05, function()
-            VirtualInputManager:SendMouseButtonEvent(centerX, centerY, 0, false, game, 1)
-            pcall(function() button.BackgroundColor3 = oldColor end)
+    pcall(function()
+        -- 1. Executor固有の機能があれば使う（最強）
+        if getconnections then
+            for _, connection in pairs(getconnections(button.Activated)) do
+                connection:Fire()
+            end
+            for _, connection in pairs(getconnections(button.MouseButton1Click)) do
+                connection:Fire()
+            end
+            for _, connection in pairs(getconnections(button.MouseButton1Down)) do
+                connection:Fire()
+            end
+        else
+            -- 2. 標準的なイベント発火（汎用）
+            if button.Activated then button.Activated:Fire() end
+            if button.MouseButton1Click then button:FireEvent("MouseButton1Click") end
+        end
+
+        -- 視覚エフェクト（押されたことがわかるように）
+        local t = game:GetService("TweenService"):Create(button, TweenInfo.new(0.1), {ImageTransparency = 0.5})
+        t:Play()
+        task.delay(0.1, function()
+            local t2 = game:GetService("TweenService"):Create(button, TweenInfo.new(0.1), {ImageTransparency = 0})
+            t2:Play()
         end)
-    end
+    end)
 end
 
 -- === メインループ ===
-local function mainClickLoop()
-    while isClicking do
-        local currentTime = tick()
-        
-        if currentTime - lastClickTime >= clickSpeed then
-            -- 1. 検出されたボタンがあればクリック
+local function startLoop()
+    task.spawn(function()
+        while isRunning do
             if #targetButtons > 0 then
                 for _, btn in pairs(targetButtons) do
-                    simulateClick(btn)
+                    if isRunning then -- ループ内でもチェック
+                        mobileTap(btn)
+                    end
                 end
             else
-                -- 2. ボタンがない場合、現在のマウス位置を連打（Fling用）
-                -- ※UIボタンが見つからないときは、単純な連打ツールとして機能します
-                local mouseX, mouseY = mouse.X, mouse.Y
-                VirtualInputManager:SendMouseButtonEvent(mouseX, mouseY, 0, true, game, 1)
-                task.delay(0.02, function()
-                     VirtualInputManager:SendMouseButtonEvent(mouseX, mouseY, 0, false, game, 1)
+                -- ボタンが見つからない場合、画面中央タップ（物理判定用）
+                -- VirtualInputManagerは一部モバイルExecutorで動作しない可能性があるが、一応実装
+                pcall(function()
+                    VirtualInputManager:SendTouchEvent(Vector2.new(500, 500), 0, 0) -- TouchStart
+                    task.wait(0.01)
+                    VirtualInputManager:SendTouchEvent(Vector2.new(500, 500), 0, 2) -- TouchEnd
                 end)
             end
-            
-            lastClickTime = currentTime
+            task.wait(clickSpeed)
         end
-        RunService.RenderStepped:Wait()
-    end
+    end)
 end
 
--- ボタン検出ループ（3秒ごとに更新）
-task.spawn(function()
-    while true do
-        if isClicking then
-            findGameButtons()
-        end
-        task.wait(3)
-    end
-end)
-
--- トグルボタンの処理
-toggleButton.MouseButton1Click:Connect(function()
-    isClicking = not isClicking
+-- === ボタン操作 ===
+toggleBtn.MouseButton1Click:Connect(function()
+    isRunning = not isRunning
     
-    if isClicking then
-        -- ON
-        toggleButton.BackgroundColor3 = Color3.fromRGB(80, 255, 80)
-        toggleButton.Text = "ON"
-        clickStatus.Text = "稼働中..."
-        clickStatus.TextColor3 = Color3.fromRGB(100, 255, 100)
+    if isRunning then
+        -- ONにする
+        toggleBtn.Text = "STOP"
+        toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 255, 60) -- 緑
+        status.Text = "検索中..."
         
-        -- 開始時に一度ボタンを探す
-        findGameButtons()
+        -- ボタンを再検索
+        findMobileControls()
         
         -- ループ開始
-        task.spawn(mainClickLoop)
+        startLoop()
     else
-        -- OFF
-        toggleButton.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
-        toggleButton.Text = "OFF"
-        clickStatus.Text = "停止中"
-        clickStatus.TextColor3 = Color3.fromRGB(200, 200, 255)
+        -- OFFにする
+        toggleBtn.Text = "START"
+        toggleBtn.BackgroundColor3 = Color3.fromRGB(255, 60, 60) -- 赤
+        status.Text = "停止中"
     end
 end)
 
--- ドラッグ移動機能
-local dragging, dragInput, dragStart, startPos
-
-displayFrame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = displayFrame.Position
-        
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
-    end
-end)
-
-displayFrame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        local delta = input.Position - dragStart
-        displayFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
-
--- 起動時処理
-findGameButtons()
-print("Fling AutoClicker (Fixed VIM Version) Loaded.")
+-- 初期化
+findMobileControls()
+print("Mobile Auto Clicker Loaded for Fling Things and People")
