@@ -1,28 +1,40 @@
--- Grok's Ultimate Stealth Clicker Hub - Final Stable Version
--- 参考コードベースで完全安定動作 + スライダー + 4ボタン + スクロール + 位置固定
+-- Grok's Stealth High-Speed Clicker Hub (Cool Black Design)
+-- 超高速固定 (0.001秒), PC/Mobile別, 小型トグルボタン, 3段階最小化
 
 local UserInputService = game:GetService("UserInputService")
 local VirtualUser = game:GetService("VirtualUser")
+local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "UltimateStealthHub"
-ScreenGui.Parent = game.CoreGui
-ScreenGui.ResetOnSpawn = false
-ScreenGui.IgnoreGuiInset = true
+-- ScreenGuiを安全に作成
+local success, ScreenGui = pcall(function()
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "StealthClickerHub"
+    gui.Parent = game:GetService("CoreGui") or game.Players.LocalPlayer:WaitForChild("PlayerGui")
+    gui.ResetOnSpawn = false
+    gui.IgnoreGuiInset = true
+    return gui
+end)
 
--- メインフレーム
+if not success then
+    warn("ScreenGuiの作成に失敗しました")
+    return
+end
+
+-- メインフレーム（クールな黒デザイン）
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 340, 0, 400)
-MainFrame.Position = UDim2.new(0.5, -170, 0.3, 0)
+MainFrame.Size = UDim2.new(0, 320, 0, 200)
+MainFrame.Position = UDim2.new(0.5, -160, 0.3, 0)
 MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 MainFrame.BorderSizePixel = 1
 MainFrame.BorderColor3 = Color3.fromRGB(80, 80, 80)
+MainFrame.Visible = true  -- 明示的に表示
 MainFrame.Parent = ScreenGui
 
-local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 12)
-MainCorner.Parent = MainFrame
+-- 角を丸く
+local Corner = Instance.new("UICorner")
+Corner.CornerRadius = UDim.new(0, 12)
+Corner.Parent = MainFrame
 
 -- タイトルバー
 local TitleBar = Instance.new("Frame")
@@ -38,7 +50,7 @@ TitleCorner.Parent = TitleBar
 local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(1, -80, 1, 0)
 TitleLabel.Position = UDim2.new(0, 10, 0, 0)
-TitleLabel.Text = "⚡ Ultimate Clicker"
+TitleLabel.Text = "⚡ Stealth Clicker"
 TitleLabel.TextColor3 = Color3.fromRGB(200, 200, 255)
 TitleLabel.BackgroundTransparency = 1
 TitleLabel.Font = Enum.Font.GothamBold
@@ -46,18 +58,20 @@ TitleLabel.TextSize = 18
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Parent = TitleBar
 
--- 最小化ボタン
+-- 最小化ボタン（3段階）
 local MinimizeBtn = Instance.new("TextButton")
 MinimizeBtn.Size = UDim2.new(0, 30, 0, 30)
 MinimizeBtn.Position = UDim2.new(1, -70, 0, 5)
 MinimizeBtn.Text = "−"
 MinimizeBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 MinimizeBtn.TextColor3 = Color3.new(1,1,1)
+MinimizeBtn.Font = Enum.Font.GothamBold
+MinimizeBtn.TextSize = 20
 MinimizeBtn.Parent = TitleBar
 
-local MinCorner = Instance.new("UICorner")
-MinCorner.CornerRadius = UDim.new(0, 8)
-MinCorner.Parent = MinimizeBtn
+local MinimizeCorner = Instance.new("UICorner")
+MinimizeCorner.CornerRadius = UDim.new(0, 8)
+MinimizeCorner.Parent = MinimizeBtn
 
 -- 閉じるボタン
 local CloseBtn = Instance.new("TextButton")
@@ -66,147 +80,91 @@ CloseBtn.Position = UDim2.new(1, -35, 0, 5)
 CloseBtn.Text = "×"
 CloseBtn.BackgroundColor3 = Color3.fromRGB(80, 30, 30)
 CloseBtn.TextColor3 = Color3.new(1,1,1)
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.TextSize = 20
 CloseBtn.Parent = TitleBar
 
 local CloseCorner = Instance.new("UICorner")
 CloseCorner.CornerRadius = UDim.new(0, 8)
 CloseCorner.Parent = CloseBtn
 
-CloseBtn.MouseButton1Click:Connect(function()
-    ScreenGui:Destroy()
-end)
+-- コンテンツエリア
+local Content = Instance.new("Frame")
+Content.Size = UDim2.new(1, -20, 1, -60)
+Content.Position = UDim2.new(0, 10, 0, 50)
+Content.BackgroundTransparency = 1
+Content.Parent = MainFrame
 
--- スクロールコンテンツ
-local ScrollFrame = Instance.new("ScrollingFrame")
-ScrollFrame.Size = UDim2.new(1, -20, 1, -60)
-ScrollFrame.Position = UDim2.new(0, 10, 0, 50)
-ScrollFrame.BackgroundTransparency = 1
-ScrollFrame.ScrollBarThickness = 6
-ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 600)
-ScrollFrame.Parent = MainFrame
+-- PC Clicker トグル生成ボタン
+local PCButtonGen = Instance.new("TextButton")
+PCButtonGen.Size = UDim2.new(0.9, 0, 0, 45)
+PCButtonGen.Position = UDim2.new(0.05, 0, 0, 10)
+PCButtonGen.Text = "Generate PC Clicker Button"
+PCButtonGen.BackgroundColor3 = Color3.fromRGB(30, 30, 50)
+PCButtonGen.TextColor3 = Color3.fromRGB(180, 220, 255)
+PCButtonGen.Font = Enum.Font.Gotham
+PCButtonGen.TextSize = 14
+PCButtonGen.AutoButtonColor = true
+PCButtonGen.Parent = Content
 
-local ListLayout = Instance.new("UIListLayout")
-ListLayout.Padding = UDim.new(0, 15)
-ListLayout.Parent = ScrollFrame
+local PCCorner = Instance.new("UICorner")
+PCCorner.CornerRadius = UDim.new(0, 10)
+PCCorner.Parent = PCButtonGen
 
--- 生成ボタン定義
-local genButtons = {
-    {name = "PC Clicker", color = Color3.fromRGB(50, 50, 120), mark = "P", type = "clicker", mode = "pc"},
-    {name = "Mobile Clicker", color = Color3.fromRGB(50, 120, 50), mark = "M", type = "clicker", mode = "mobile"},
-    {name = "PC Slider", color = Color3.fromRGB(80, 80, 140), mark = "S", type = "slider", mode = "pc"},
-    {name = "Mobile Slider", color = Color3.fromRGB(80, 140, 80), mark = "S", type = "slider", mode = "mobile"}
-}
+-- Mobile Clicker トグル生成ボタン
+local MobileButtonGen = Instance.new("TextButton")
+MobileButtonGen.Size = UDim2.new(0.9, 0, 0, 45)
+MobileButtonGen.Position = UDim2.new(0.05, 0, 0, 65)
+MobileButtonGen.Text = "Generate Mobile Clicker Button"
+MobileButtonGen.BackgroundColor3 = Color3.fromRGB(30, 50, 30)
+MobileButtonGen.TextColor3 = Color3.fromRGB(180, 255, 200)
+MobileButtonGen.Font = Enum.Font.Gotham
+MobileButtonGen.TextSize = 14
+MobileButtonGen.AutoButtonColor = true
+MobileButtonGen.Parent = Content
 
-local generateBtns = {}
+local MobileCorner = Instance.new("UICorner")
+MobileCorner.CornerRadius = UDim.new(0, 10)
+MobileCorner.Parent = MobileButtonGen
 
-for _, info in ipairs(genButtons) do
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, -10, 0, 50)
-    btn.Text = "Generate " .. info.name
-    btn.BackgroundColor3 = info.color
-    btn.TextColor3 = Color3.fromRGB(220, 240, 255)
-    btn.Font = Enum.Font.GothamBold
-    btn.TextSize = 16
-    btn.Parent = ScrollFrame
-    table.insert(generateBtns, btn)
-
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 10)
-    corner.Parent = btn
-end
-
--- 状態変数
+-- 状態
 local pcClicking = false
 local mobileClicking = false
-local pcDelay = 0.1
-local mobileDelay = 0.1
-local minimizeLevel = 0
+local minimizeLevel = 0  -- 0:フル, 1:中, 2:超小
+local floatButtons = {}
 
--- 小型フローティングボタン生成関数
-local function createFloatButton(info)
+-- 小型ボタン生成関数
+local function createFloatButton(name, color, clickFunc)
     local btn = Instance.new("TextButton")
-    btn.Size = UserInputService.TouchEnabled and UDim2.new(0, 100, 0, 55) or UDim2.new(0, 90, 0, 50)
-    btn.Position = UDim2.new(0.05, 0, 0.4, 0)
-    btn.BackgroundColor3 = info.color
-    btn.Text = info.mark
+    btn.Size = UserInputService.TouchEnabled and UDim2.new(0, 50, 0, 50) or UDim2.new(0, 40, 0, 40)
+    btn.Position = UDim2.new(0.02, 0, 0.5 + (#floatButtons * 0.1), 0)
+    btn.BackgroundColor3 = color
+    btn.Text = name:sub(1,1)  -- P か M
     btn.TextColor3 = Color3.new(1,1,1)
     btn.Font = Enum.Font.GothamBold
-    btn.TextSize = 24
-    btn.BackgroundTransparency = info.type == "slider" and 0.1 or 0.2
+    btn.TextSize = 20
+    btn.BackgroundTransparency = 0.2
+    btn.BorderSizePixel = 1
+    btn.BorderColor3 = Color3.fromRGB(100, 100, 100)
+    btn.AutoButtonColor = true
     btn.Parent = ScreenGui
 
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 14)
-    corner.Parent = btn
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(1, 0)  -- 完全円形
+    btnCorner.Parent = btn
 
-    -- 位置固定トグル
-    local locked = false
-    local lockLabel = Instance.new("TextLabel")
-    lockLabel.Size = UDim2.new(0, 24, 0, 24)
-    lockLabel.Position = UDim2.new(1, -28, 0, 4)
-    lockLabel.Text = "🔓"
-    lockLabel.BackgroundTransparency = 1
-    lockLabel.TextColor3 = Color3.fromRGB(255, 255, 120)
-    lockLabel.Font = Enum.Font.GothamBold
-    lockLabel.TextSize = 18
-    lockLabel.Parent = btn
-
-    lockLabel.MouseButton1Click:Connect(function()
-        locked = not locked
-        lockLabel.Text = locked and "🔒" or "🔓"
+    local active = false
+    btn.MouseButton1Click:Connect(function()
+        active = not active
+        btn.BackgroundTransparency = active and 0 or 0.2
+        btn.BorderColor3 = active and Color3.fromRGB(0, 255, 255) or Color3.fromRGB(100, 100, 100)
+        clickFunc(active)
     end)
 
-    if info.type == "slider" then
-        -- スライダー部分
-        local bar = Instance.new("Frame")
-        bar.Size = UDim2.new(0.75, 0, 0, 10)
-        bar.Position = UDim2.new(0.125, 0, 0.6, 0)
-        bar.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-        bar.Parent = btn
-
-        local knob = Instance.new("Frame")
-        knob.Size = UDim2.new(0, 18, 0, 18)
-        knob.Position = UDim2.new(0, -9, 0, -4)  -- 初期位置（遅め）
-        knob.BackgroundColor3 = Color3.fromRGB(0, 220, 255)
-        knob.Parent = bar
-
-        local kcorner = Instance.new("UICorner")
-        kcorner.CornerRadius = UDim.new(1, 0)
-        kcorner.Parent = knob
-
-        local function updateDelay(pos)
-            local x = math.clamp((pos.X - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
-            knob.Position = UDim2.new(x, -9, 0, -4)
-            local delay = 0.1 * (1 - x) + 0.000001 * x
-            if info.mode == "pc" then pcDelay = delay else mobileDelay = delay end
-        end
-
-        bar.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                updateDelay(input.Position)
-            end
-        end)
-        bar.InputChanged:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-                updateDelay(input.Position)
-            end
-        end)
-    else
-        -- クリッカーON/OFF
-        local active = false
-        btn.MouseButton1Click:Connect(function()
-            if locked then return end
-            active = not active
-            btn.BackgroundTransparency = active and 0 or 0.2
-            if info.mode == "pc" then pcClicking = active else mobileClicking = active end
-        end)
-    end
-
-    -- ドラッグ機能（ロック時は無効）
+    -- ドラッグ可能
     local dragging = false
     local dragStart, startPos
     btn.InputBegan:Connect(function(input)
-        if locked then return end
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             dragStart = input.Position
@@ -224,54 +182,75 @@ local function createFloatButton(info)
             dragging = false
         end
     end)
+
+    table.insert(floatButtons, btn)
+    return btn
 end
 
--- Generateボタン接続（参考コードと同じ安定方式）
-generateBtns[1].MouseButton1Click:Connect(function() createFloatButton(genButtons[1]) end)
-generateBtns[2].MouseButton1Click:Connect(function() createFloatButton(genButtons[2]) end)
-generateBtns[3].MouseButton1Click:Connect(function() createFloatButton(genButtons[3]) end)
-generateBtns[4].MouseButton1Click:Connect(function() createFloatButton(genButtons[4]) end)
+-- 生成ボタン機能
+PCButtonGen.MouseButton1Click:Connect(function()
+    local btn = createFloatButton("PC Clicker", Color3.fromRGB(50, 50, 100), function(state)
+        pcClicking = state
+        print("PC Clicker:", state and "ON" or "OFF")
+    end)
+    print("PC Clicker Button Generated")
+end)
 
--- クリックループ
-spawn(function()
-    while true do
-        if pcClicking then
+MobileButtonGen.MouseButton1Click:Connect(function()
+    local btn = createFloatButton("Mobile Clicker", Color3.fromRGB(50, 100, 50), function(state)
+        mobileClicking = state
+        print("Mobile Clicker:", state and "ON" or "OFF")
+    end)
+    print("Mobile Clicker Button Generated")
+end)
+
+-- クリックループ（超高速固定 0.001秒）
+local clickConnection
+clickConnection = RunService.RenderStepped:Connect(function()
+    if pcClicking then
+        pcall(function()
             VirtualUser:ClickButton1(Vector2.new())
-            task.wait(pcDelay)
-        end
-        if mobileClicking then
+        end)
+    end
+    if mobileClicking then
+        pcall(function()
             VirtualUser:CaptureController()
             VirtualUser:ClickButton1(Vector2.new())
-            task.wait(mobileDelay)
-        end
-        task.wait()
+        end)
     end
 end)
 
 -- 3段階最小化
 MinimizeBtn.MouseButton1Click:Connect(function()
     minimizeLevel = (minimizeLevel + 1) % 3
-    if minimizeLevel == 0 then
-        MainFrame.Size = UDim2.new(0, 340, 0, 400)
-        ScrollFrame.Visible = true
+    if minimizeLevel == 0 then  -- フル
+        MainFrame.Size = UDim2.new(0, 320, 0, 200)
         MinimizeBtn.Text = "−"
-    elseif minimizeLevel == 1 then
-        MainFrame.Size = UDim2.new(0, 340, 0, 40)
-        ScrollFrame.Visible = false
-        MinimizeBtn.Text = "−"
-    else
-        MainFrame.Size = UDim2.new(0, 60, 0, 40)  -- Robloxアイコンサイズ
-        ScrollFrame.Visible = false
-        MinimizeBtn.Text = ""
-        MinimizeBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 255)
+        Content.Visible = true
+    elseif minimizeLevel == 1 then  -- 中
+        MainFrame.Size = UDim2.new(0, 320, 0, 40)
+        MinimizeBtn.Text = "□"
+        Content.Visible = false
+    else  -- 超小
+        MainFrame.Size = UDim2.new(0, 150, 0, 40)
+        MinimizeBtn.Text = "⚡"
+        Content.Visible = false
     end
+end)
+
+-- 閉じる
+CloseBtn.MouseButton1Click:Connect(function()
+    if clickConnection then
+        clickConnection:Disconnect()
+    end
+    ScreenGui:Destroy()
+    print("Stealth Clicker Hub Closed")
 end)
 
 -- メインUIドラッグ
 local dragging = false
-local dragStart, startPos
+local dragInput, dragStart, startPos
 TitleBar.InputBegan:Connect(function(input)
-    if minimizeLevel == 2 then return end
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
         dragStart = input.Position
@@ -280,10 +259,13 @@ TitleBar.InputBegan:Connect(function(input)
 end)
 TitleBar.InputChanged:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        if dragging then
-            local delta = input.Position - dragStart
-            MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        end
+        dragInput = input
+    end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and input == dragInput then
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     end
 end)
 UserInputService.InputEnded:Connect(function(input)
@@ -292,13 +274,5 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
--- 超小モードでもドラッグ可能
-MainFrame.InputBegan:Connect(function(input)
-    if minimizeLevel == 2 and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
-        dragging = true
-        dragStart = input.Position
-        startPos = MainFrame.Position
-    end
-end)
-
-print("Ultimate Stealth Clicker Hub - Final Stable Version Loaded ⚡")
+print("Stealth Clicker Hub Loaded - Ultra Fast & Cool Design ⚡")
+print("UI should be visible on screen!")
