@@ -1,5 +1,8 @@
--- Stealth Fling Mobile Clicker Hub (融合版)
--- クールな黒デザインHub + 場所指定型モバイル連打機能
+--[[
+    Unified Stealth Clicker: Location Target Edition
+    UI Base: Grok's Stealth Hub (Dark/Cool)
+    Logic: Manual Position Target Clicker (Mobile/PC Support)
+]]
 
 local Players = game:GetService("Players")
 local VirtualInputManager = game:GetService("VirtualInputManager")
@@ -8,318 +11,281 @@ local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
 
-local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
+-- === 設定 ===
+local clickSpeed = 0.001 -- 超高速設定 (Script 2準拠)
+local isRunning = false
+local isSelecting = false
+local targetPosition = nil -- Vector2
 
+-- === UI作成 (Script 2のStealth Hubデザインベース) ===
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "StealthFlingHub"
+ScreenGui.Name = "StealthTargetClicker"
 ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.IgnoreGuiInset = true
 
--- Executor対応
+-- Executor対応 (gethui)
 if gethui then
     ScreenGui.Parent = gethui()
-elseif CoreGui:FindFirstChild("RobloxGui") then
-    ScreenGui.Parent = CoreGui
 else
-    ScreenGui.Parent = playerGui
+    if CoreGui:FindFirstChild("RobloxGui") then
+        ScreenGui.Parent = CoreGui
+    else
+        ScreenGui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+    end
 end
 
--- メインフレーム（クールな黒デザイン）
+-- 1. メインフレーム（黒デザイン）
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 320, 0, 200)
 MainFrame.Position = UDim2.new(0.5, -160, 0.3, 0)
 MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 MainFrame.BorderSizePixel = 1
-MainFrame.BorderColor3 = Color3.fromRGB(80, 80, 80)
+MainFrame.BorderColor3 = Color3.fromRGB(60, 60, 60)
+MainFrame.Active = true
+MainFrame.Draggable = true -- ドラッグ可能
 MainFrame.Parent = ScreenGui
 
-local Corner = Instance.new("UICorner")
-Corner.CornerRadius = UDim.new(0, 12)
-Corner.Parent = MainFrame
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 12)
+MainCorner.Parent = MainFrame
 
--- タイトルバー
+-- 2. タイトルバー
 local TitleBar = Instance.new("Frame")
 TitleBar.Size = UDim2.new(1, 0, 0, 40)
 TitleBar.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+TitleBar.BackgroundTransparency = 0.5
 TitleBar.Parent = MainFrame
 
 local TitleCorner = Instance.new("UICorner")
 TitleCorner.CornerRadius = UDim.new(0, 12)
 TitleCorner.Parent = TitleBar
 
+-- タイトル文字
 local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(1, -80, 1, 0)
-TitleLabel.Position = UDim2.new(0, 10, 0, 0)
-TitleLabel.Text = "⚡ Fling Mobile Clicker"
+TitleLabel.Position = UDim2.new(0, 15, 0, 0)
+TitleLabel.Text = "⚡ Stealth Target Clicker"
 TitleLabel.TextColor3 = Color3.fromRGB(200, 200, 255)
 TitleLabel.BackgroundTransparency = 1
 TitleLabel.Font = Enum.Font.GothamBold
-TitleLabel.TextSize = 18
+TitleLabel.TextSize = 16
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Parent = TitleBar
 
--- 最小化ボタン（3段階）
+-- 3. コントロールボタン (最小化・閉じる)
 local MinimizeBtn = Instance.new("TextButton")
 MinimizeBtn.Size = UDim2.new(0, 30, 0, 30)
-MinimizeBtn.Position = UDim2.new(1, -70, 0, 5)
+MinimizeBtn.Position = UDim2.new(1, -75, 0, 5)
 MinimizeBtn.Text = "−"
 MinimizeBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 MinimizeBtn.TextColor3 = Color3.new(1,1,1)
+MinimizeBtn.Font = Enum.Font.GothamBold
 MinimizeBtn.Parent = TitleBar
+Instance.new("UICorner", MinimizeBtn).CornerRadius = UDim.new(0, 8)
 
-local MinimizeCorner = Instance.new("UICorner")
-MinimizeCorner.CornerRadius = UDim.new(0, 8)
-MinimizeCorner.Parent = MinimizeBtn
-
--- 閉じるボタン
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Size = UDim2.new(0, 30, 0, 30)
-CloseBtn.Position = UDim2.new(1, -35, 0, 5)
+CloseBtn.Position = UDim2.new(1, -40, 0, 5)
 CloseBtn.Text = "×"
 CloseBtn.BackgroundColor3 = Color3.fromRGB(80, 30, 30)
 CloseBtn.TextColor3 = Color3.new(1,1,1)
+CloseBtn.Font = Enum.Font.GothamBold
 CloseBtn.Parent = TitleBar
+Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 8)
 
-local CloseCorner = Instance.new("UICorner")
-CloseCorner.CornerRadius = UDim.new(0, 8)
-CloseCorner.Parent = CloseBtn
-
--- コンテンツエリア
+-- 4. コンテンツエリア (機能部分)
 local Content = Instance.new("Frame")
-Content.Size = UDim2.new(1, -20, 1, -60)
-Content.Position = UDim2.new(0, 10, 0, 50)
+Content.Size = UDim2.new(1, -20, 1, -50)
+Content.Position = UDim2.new(0, 10, 0, 45)
 Content.BackgroundTransparency = 1
 Content.Parent = MainFrame
 
--- 生成ボタン
-local GenerateBtn = Instance.new("TextButton")
-GenerateBtn.Size = UDim2.new(0.9, 0, 0, 55)
-GenerateBtn.Position = UDim2.new(0.05, 0, 0.5, -27)
-GenerateBtn.Text = "Generate Fling Mobile Clicker"
-GenerateBtn.BackgroundColor3 = Color3.fromRGB(50, 100, 50)
-GenerateBtn.TextColor3 = Color3.fromRGB(180, 255, 200)
-GenerateBtn.Font = Enum.Font.GothamBold
-GenerateBtn.TextSize = 16
-GenerateBtn.Parent = Content
+-- ステータス表示
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Size = UDim2.new(1, 0, 0, 25)
+StatusLabel.Position = UDim2.new(0, 0, 0, 0)
+StatusLabel.Text = "Target: None"
+StatusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Font = Enum.Font.Gotham
+StatusLabel.TextSize = 14
+StatusLabel.Parent = Content
 
-local GenCorner = Instance.new("UICorner")
-GenCorner.CornerRadius = UDim.new(0, 10)
-GenCorner.Parent = GenerateBtn
+-- 場所設定ボタン (SET)
+local SetBtn = Instance.new("TextButton")
+SetBtn.Size = UDim2.new(1, 0, 0, 45)
+SetBtn.Position = UDim2.new(0, 0, 0.25, 0)
+SetBtn.Text = "Set Click Position 🎯"
+SetBtn.BackgroundColor3 = Color3.fromRGB(40, 60, 90)
+SetBtn.TextColor3 = Color3.fromRGB(200, 220, 255)
+SetBtn.Font = Enum.Font.GothamBold
+SetBtn.TextSize = 16
+SetBtn.Parent = Content
+Instance.new("UICorner", SetBtn).CornerRadius = UDim.new(0, 8)
 
--- 最小化状態管理
-local minimizeLevel = 0
+-- 開始/停止ボタン (START/STOP)
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Size = UDim2.new(1, 0, 0, 45)
+ToggleBtn.Position = UDim2.new(0, 0, 0.65, 0)
+ToggleBtn.Text = "START CLICKING"
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40) -- Disabled color
+ToggleBtn.TextColor3 = Color3.fromRGB(100, 100, 100)
+ToggleBtn.Font = Enum.Font.GothamBold
+ToggleBtn.TextSize = 16
+ToggleBtn.AutoButtonColor = false -- 手動制御
+ToggleBtn.Parent = Content
+Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 8)
+
+-- === ターゲットマーカー (Script 1の機能) ===
+local Marker = Instance.new("Frame")
+Marker.Name = "TargetMarker"
+Marker.Size = UDim2.new(0, 20, 0, 20)
+Marker.AnchorPoint = Vector2.new(0.5, 0.5)
+Marker.BackgroundColor3 = Color3.fromRGB(255, 0, 255) -- 目立つピンク
+Marker.BackgroundTransparency = 0.3
+Marker.Visible = false
+Marker.ZIndex = 10000
+Marker.Parent = ScreenGui
+Instance.new("UICorner", Marker).CornerRadius = UDim.new(1, 0) -- 丸
+-- 枠線
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.new(1,1,1)
+stroke.Thickness = 2
+stroke.Parent = Marker
+
+-- === 選択用オーバーレイ (透明な全画面ボタン) ===
+local SelectionOverlay = Instance.new("TextButton")
+SelectionOverlay.Name = "Overlay"
+SelectionOverlay.Size = UDim2.new(1, 0, 1, 0)
+SelectionOverlay.BackgroundTransparency = 0.5
+SelectionOverlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+SelectionOverlay.Text = "Tap the button you want to click!"
+SelectionOverlay.TextColor3 = Color3.fromRGB(255, 255, 255)
+SelectionOverlay.TextSize = 24
+SelectionOverlay.Font = Enum.Font.GothamBold
+SelectionOverlay.Visible = false
+SelectionOverlay.ZIndex = 9999
+SelectionOverlay.Parent = ScreenGui
+
+-- === ロジック実装 ===
+
+-- 1. 場所設定開始
+SetBtn.MouseButton1Click:Connect(function()
+    isRunning = false
+    isSelecting = true
+    
+    -- UI状態リセット
+    ToggleBtn.Text = "START CLICKING"
+    ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    ToggleBtn.TextColor3 = Color3.fromRGB(100, 100, 100)
+    
+    StatusLabel.Text = "Select a target..."
+    SelectionOverlay.Visible = true
+end)
+
+-- 2. 場所決定 (InputBeganを使用)
+UserInputService.InputBegan:Connect(function(input)
+    if isSelecting and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1) then
+        -- 座標取得
+        targetPosition = input.Position
+        
+        -- マーカー移動
+        Marker.Position = UDim2.new(0, targetPosition.X, 0, targetPosition.Y)
+        Marker.Visible = true
+        
+        -- モード終了
+        isSelecting = false
+        SelectionOverlay.Visible = false
+        
+        -- UI更新
+        StatusLabel.Text = string.format("Target: (%d, %d)", targetPosition.X, targetPosition.Y)
+        SetBtn.Text = "Reset Position 🎯"
+        
+        -- スタートボタンを有効化 (赤色：待機中)
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    end
+end)
+
+-- 3. スタート/ストップ切り替え
+ToggleBtn.MouseButton1Click:Connect(function()
+    if not targetPosition then return end -- 場所が決まってなければ無視
+    
+    isRunning = not isRunning
+    
+    if isRunning then
+        ToggleBtn.Text = "STOP CLICKING"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50) -- 緑
+        StatusLabel.Text = "Status: CLICKING ⚡"
+    else
+        ToggleBtn.Text = "START CLICKING"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- 赤
+        StatusLabel.Text = "Status: PAUSED"
+    end
+end)
+
+-- 4. 連打ループ (Script 1のVIMロジック + Script 2の高速性)
+task.spawn(function()
+    while true do
+        if isRunning and targetPosition then
+            pcall(function()
+                local pos = Vector2.new(targetPosition.X, targetPosition.Y)
+                
+                -- タップイベント送信 (VirtualInputManagerを使用することで正確な位置をタップ)
+                VirtualInputManager:SendTouchEvent(pos, 0, 0) -- Touch Start
+                -- ごく短時間待機しないと反応しないゲームがあるため微調整 (Script 2より少し安定重視)
+                -- もし早すぎて反応しない場合はここを task.wait(0.01) にしてください
+                VirtualInputManager:SendTouchEvent(pos, 0, 2) -- Touch End
+            end)
+            
+            -- 視覚エフェクト (マーカーを少し動かす)
+            local t = TweenService:Create(Marker, TweenInfo.new(0.05), {Size = UDim2.new(0, 18, 0, 18)})
+            t:Play()
+            task.delay(0.05, function()
+                Marker.Size = UDim2.new(0, 20, 0, 20)
+            end)
+        end
+        
+        -- 連打速度待機
+        if isRunning then
+            task.wait(clickSpeed)
+        else
+            task.wait(0.1) -- 停止中は負荷を下げる
+        end
+    end
+end)
+
+-- === 最小化ロジック (Script 2から継承) ===
+local minimizeLevel = 0 -- 0:Full, 1:Bar, 2:Tiny
 
 MinimizeBtn.MouseButton1Click:Connect(function()
     minimizeLevel = (minimizeLevel + 1) % 3
-    if minimizeLevel == 0 then
+    
+    if minimizeLevel == 0 then -- フル表示
         MainFrame.Size = UDim2.new(0, 320, 0, 200)
         MinimizeBtn.Text = "−"
         Content.Visible = true
-    elseif minimizeLevel == 1 then
+        TitleLabel.Text = "⚡ Stealth Target Clicker"
+        
+    elseif minimizeLevel == 1 then -- タイトルバーのみ
         MainFrame.Size = UDim2.new(0, 320, 0, 40)
         MinimizeBtn.Text = "□"
         Content.Visible = false
-    else
-        MainFrame.Size = UDim2.new(0, 150, 0, 40)
+        TitleLabel.Text = isRunning and "⚡ Clicking..." or "⚡ Paused"
+        
+    else -- 超小型 (アイコンのみ)
+        MainFrame.Size = UDim2.new(0, 120, 0, 40)
         MinimizeBtn.Text = "⚡"
         Content.Visible = false
+        TitleLabel.Text = isRunning and "ON" or "OFF"
     end
 end)
 
+-- 閉じる機能
 CloseBtn.MouseButton1Click:Connect(function()
+    isRunning = false
     ScreenGui:Destroy()
 end)
 
--- メインUIドラッグ
-local dragging = false
-local dragInput, dragStart, startPos
-
-TitleBar.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = MainFrame.Position
-    end
-end)
-
-TitleBar.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if dragging and input == dragInput then
-        local delta = input.Position - dragStart
-        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = false
-    end
-end)
-
--- 場所指定型モバイルクリッカー生成関数
-local function createFlingClicker()
-    -- 個別のScreenGui（Hubとは別）
-    local clickerGui = Instance.new("ScreenGui")
-    clickerGui.Name = "FlingClickerInstance"
-    clickerGui.ResetOnSpawn = false
-    clickerGui.Parent = ScreenGui.Parent -- 同じ親に
-
-    -- 状態
-    local isRunning = false
-    local isSelecting = false
-    local targetPosition = nil
-    local clickSpeed = 0.05
-
-    -- メインフレーム（小型）
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 160, 0, 130)
-    frame.Position = UDim2.new(0.05, math.random(0, 100), 0.4, math.random(0, 100))
-    frame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-    frame.Active = true
-    frame.Draggable = true
-    frame.Parent = clickerGui
-
-    local uiCorner = Instance.new("UICorner")
-    uiCorner.CornerRadius = UDim.new(0, 12)
-    uiCorner.Parent = frame
-
-    -- タイトル
-    local title = Instance.new("TextLabel")
-    title.Text = "Fling Clicker"
-    title.Size = UDim2.new(1, 0, 0.2, 0)
-    title.BackgroundTransparency = 1
-    title.TextColor3 = Color3.new(1,1,1)
-    title.Font = Enum.Font.GothamBold
-    title.TextSize = 14
-    title.Parent = frame
-
-    -- ステータス
-    local status = Instance.new("TextLabel")
-    status.Text = "場所未設定"
-    status.Size = UDim2.new(1, 0, 0.15, 0)
-    status.Position = UDim2.new(0, 0, 0.2, 0)
-    status.BackgroundTransparency = 1
-    status.TextColor3 = Color3.fromRGB(200, 200, 200)
-    status.TextSize = 12
-    status.Parent = frame
-
-    -- 場所設定ボタン
-    local setBtn = Instance.new("TextButton")
-    setBtn.Size = UDim2.new(0.8, 0, 0.25, 0)
-    setBtn.Position = UDim2.new(0.1, 0, 0.4, 0)
-    setBtn.BackgroundColor3 = Color3.fromRGB(80, 150, 255)
-    setBtn.Text = "場所を決める"
-    setBtn.TextColor3 = Color3.new(1,1,1)
-    setBtn.Font = Enum.Font.GothamBold
-    setBtn.TextSize = 12
-    setBtn.Parent = frame
-    Instance.new("UICorner", setBtn).CornerRadius = UDim.new(0, 8)
-
-    -- トグルボタン
-    local toggleBtn = Instance.new("TextButton")
-    toggleBtn.Size = UDim2.new(0.8, 0, 0.25, 0)
-    toggleBtn.Position = UDim2.new(0.1, 0, 0.7, 0)
-    toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    toggleBtn.Text = "START"
-    toggleBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
-    toggleBtn.Font = Enum.Font.GothamBold
-    toggleBtn.TextSize = 14
-    toggleBtn.Parent = frame
-    Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 8)
-
-    -- マーカー
-    local marker = Instance.new("Frame")
-    marker.Size = UDim2.new(0, 20, 0, 20)
-    marker.AnchorPoint = Vector2.new(0.5, 0.5)
-    marker.BackgroundColor3 = Color3.fromRGB(255, 0, 255)
-    marker.BackgroundTransparency = 0.3
-    marker.BorderSizePixel = 2
-    marker.BorderColor3 = Color3.new(1,1,1)
-    marker.Visible = false
-    marker.ZIndex = 10000
-    marker.Parent = clickerGui
-    Instance.new("UICorner", marker).CornerRadius = UDim.new(1, 0)
-
-    -- オーバーレイ
-    local overlay = Instance.new("TextButton")
-    overlay.Size = UDim2.new(1, 0, 1, 0)
-    overlay.BackgroundTransparency = 0.8
-    overlay.BackgroundColor3 = Color3.new(0,0,0)
-    overlay.Text = "連打したい場所をタップ"
-    overlay.TextColor3 = Color3.new(1,1,1)
-    overlay.TextSize = 24
-    overlay.Font = Enum.Font.GothamBold
-    overlay.Visible = false
-    overlay.ZIndex = 9999
-    overlay.Parent = clickerGui
-
-    -- ロジック
-    setBtn.MouseButton1Click:Connect(function()
-        isRunning = false
-        isSelecting = true
-        toggleBtn.Text = "START"
-        toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-        status.Text = "タップして設定..."
-        overlay.Visible = true
-    end)
-
-    UserInputService.InputBegan:Connect(function(input)
-        if isSelecting and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1) then
-            targetPosition = input.Position
-            marker.Position = UDim2.new(0, targetPosition.X, 0, targetPosition.Y)
-            marker.Visible = true
-            isSelecting = false
-            overlay.Visible = false
-            status.Text = "設定完了!"
-            toggleBtn.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
-            toggleBtn.TextColor3 = Color3.new(1,1,1)
-        end
-    end)
-
-    toggleBtn.MouseButton1Click:Connect(function()
-        if not targetPosition then
-            status.Text = "先に場所を決めて!"
-            return
-        end
-        isRunning = not isRunning
-        if isRunning then
-            toggleBtn.Text = "STOP"
-            toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 255, 60)
-            status.Text = "連打中..."
-        else
-            toggleBtn.Text = "START"
-            toggleBtn.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
-            status.Text = "停止中"
-        end
-    end)
-
-    -- 連打ループ
-    task.spawn(function()
-        while task.wait(clickSpeed) do
-            if isRunning and targetPosition then
-                pcall(function()
-                    local pos = Vector2.new(targetPosition.X, targetPosition.Y)
-                    VirtualInputManager:SendTouchEvent(pos, 0, 0) -- Touch Start
-                    task.wait(0.01)
-                    VirtualInputManager:SendTouchEvent(pos, 0, 2) -- Touch End
-                end)
-                -- マーカーフィードバック
-                TweenService:Create(marker, TweenInfo.new(0.05), {Size = UDim2.new(0, 15, 0, 15)}):Play()
-                task.delay(0.05, function()
-                    marker.Size = UDim2.new(0, 20, 0, 20)
-                end)
-            end
-        end
-    end)
-end
-
--- 生成ボタン接続
-GenerateBtn.MouseButton1Click:Connect(createFlingClicker)
-
-print("Stealth Fling Mobile Clicker Hub Loaded ⚡")
+print("Stealth Target Clicker Loaded - UI V2 / Logic V1")
