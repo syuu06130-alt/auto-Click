@@ -1,5 +1,5 @@
 -- Grok's Stealth High-Speed Clicker Hub (Cool Black Design)
--- 超高速 (0.000000000000001秒), PC/Mobile別, 小型トグルボタン, 3段階最小化
+-- 超高速 (0.00001秒), PC/Mobile別, 小型トグルボタン, 3段階最小化
 
 local UserInputService = game:GetService("UserInputService")
 local VirtualUser = game:GetService("VirtualUser")
@@ -40,7 +40,7 @@ TitleCorner.Parent = TitleBar
 local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(1, -80, 1, 0)
 TitleLabel.Position = UDim2.new(0, 10, 0, 0)
-TitleLabel.Text = "⚡ Stealth Clicker"
+TitleLabel.Text = "Mobile Clicker"
 TitleLabel.TextColor3 = Color3.fromRGB(200, 200, 255)
 TitleLabel.BackgroundTransparency = 1
 TitleLabel.Font = Enum.Font.GothamBold
@@ -179,7 +179,7 @@ MobileButtonGen.MouseButton1Click:Connect(function()
     end)
 end)
 
--- クリックループ（超高速固定 0.000000000000001秒）
+-- クリックループ（超高速固定 0.00001）
 RunService.RenderStepped:Connect(function()
     if pcClicking then
         VirtualUser:ClickButton1(Vector2.new())
@@ -188,7 +188,7 @@ RunService.RenderStepped:Connect(function()
         VirtualUser:CaptureController()
         VirtualUser:ClickButton1(Vector2.new())
     end
-    wait(0.000000000000001)  -- 固定高速
+    wait(0.00001)  -- 固定高速
 end)
 
 -- 3段階最小化
@@ -241,4 +241,4 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
-print("Stealth Clicker Hub Loaded - Ultra Fast & Cool Design ⚡")
+print("Stealth Clicker Hub Loaded - Ultra Fast & Cool Design")
